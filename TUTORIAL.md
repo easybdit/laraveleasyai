@@ -224,7 +224,7 @@ In the built-in chat UI, this is already wired to a slash command — type `/ima
 Prefer OpenAI's DALL·E instead of Together's FLUX? Same contract, same one-line swap:
 
 ```php
-$url = AI::provider('openai')->generateImage('a rustic coffee bag mockup'); // dall-e-3 by default
+$url = AI::provider('openai')->generateImage('a rustic coffee bag mockup'); // gpt-image-2 by default
 ```
 
 ---

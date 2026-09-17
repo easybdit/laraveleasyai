@@ -149,7 +149,7 @@ class UsageLoggingTest extends TestCase
     {
         config([
             'ai.usage_logging.enabled'         => true,
-            'ai.pricing.openai.image.dall-e-3' => 0.04,
+            'ai.pricing.openai.image.gpt-image-2' => 0.04,
         ]);
 
         Http::fake([

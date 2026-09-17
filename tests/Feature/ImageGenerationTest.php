@@ -20,6 +20,13 @@ class ImageGenerationTest extends TestCase
 {
     public function test_openai_dalle_returns_hosted_url(): void
     {
+        // dall-e-3 was removed from the API on 2026-05-12 and is no longer
+        // the package's default (see gpt-image-2 default test below), but
+        // the driver still supports it (and any other non-gpt-image-*
+        // model) via the url-mode branch if you explicitly configure it —
+        // that's what this test covers.
+        config(['ai.providers.openai.image_model' => 'dall-e-3']);
+
         Http::fake([
             'api.openai.com/v1/images/generations' => Http::response([
                 'data' => [['url' => 'https://oaidalleapi.example/generated.png']],
@@ -35,6 +42,27 @@ class ImageGenerationTest extends TestCase
             return $body['model'] === 'dall-e-3'
                 && $body['prompt'] === 'a red fox in snow'
                 && $body['response_format'] === 'url';
+        });
+    }
+
+    public function test_openai_default_image_model_is_gpt_image_2_and_returns_data_uri(): void
+    {
+        // No image_model override — confirms the package's actual shipped
+        // default (config/ai.php), not just that gpt-image-* models work
+        // when explicitly selected.
+        Http::fake([
+            'api.openai.com/v1/images/generations' => Http::response([
+                'data' => [['b64_json' => 'ZmFrZWJhc2U2NA==']],
+            ]),
+        ]);
+
+        $result = AI::provider('openai')->generateImage('a red fox in snow');
+
+        $this->assertSame('data:image/png;base64,ZmFrZWJhc2U2NA==', $result);
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+            return $body['model'] === 'gpt-image-2' && !array_key_exists('response_format', $body);
         });
     }
 

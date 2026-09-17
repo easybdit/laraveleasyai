@@ -157,17 +157,17 @@ class InstallCommand extends Command
 
             case 'anthropic':
                 $envPairs['AI_ANTHROPIC_KEY']   = (string) $this->secret('Your Anthropic API key');
-                $envPairs['AI_ANTHROPIC_MODEL'] = $this->ask('Anthropic model', 'claude-sonnet-4-20250514');
+                $envPairs['AI_ANTHROPIC_MODEL'] = $this->ask('Anthropic model', 'claude-sonnet-5');
                 break;
 
             case 'deepseek':
                 $envPairs['AI_DEEPSEEK_KEY']   = (string) $this->secret('Your DeepSeek API key');
-                $envPairs['AI_DEEPSEEK_MODEL'] = $this->ask('DeepSeek model', 'deepseek-chat');
+                $envPairs['AI_DEEPSEEK_MODEL'] = $this->ask('DeepSeek model', 'deepseek-flash');
                 break;
 
             case 'gemini':
                 $envPairs['AI_GEMINI_KEY']   = (string) $this->secret('Your Google Gemini API key');
-                $envPairs['AI_GEMINI_MODEL'] = $this->ask('Gemini model', 'gemini-2.0-flash');
+                $envPairs['AI_GEMINI_MODEL'] = $this->ask('Gemini model', 'gemini-3.6-flash');
                 break;
         }
 

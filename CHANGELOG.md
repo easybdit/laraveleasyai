@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.20.1 — 2026-09-17
+
+### 🐛 Fix: 4 of the package's shipped default models were actually dead
+
+Found while researching a follow-up feature (default cost-tracking pricing tables), not from a bug report — a real install using nothing but this package's own defaults was silently getting hard API failures on 4 of its 6 providers, because the pinned default model for each had since been retired by its provider:
+
+- **Anthropic** — `claude-sonnet-4-20250514` was retired 2026-06-15 09:00 PT; API calls to it error. Now defaults to `claude-sonnet-5` (also cheaper: $2/$10 per MTok vs. the retired model's $3/$15).
+- **Gemini** — `gemini-2.0-flash` was shut down 2026-06-01 (not a soft deprecation — a full 400 on every call after that date, confirmed via Google's own announcement). Now defaults to `gemini-3.6-flash`, chosen over the brand-new `gemini-3.8-flash` for a bit more runway given how fast this model line is currently churning (2.5 → 3.5 → 3.6 → 3.7 → 3.8 in a few months).
+- **Groq** — `llama-3.3-70b-versatile` was decommissioned 2026-08-16, confirmed against Groq's own model-deprecation docs and a real GitHub issue from an unrelated project hitting this exact break. Now defaults to `openai/gpt-oss-120b`, Groq's own migration recommendation.
+- **OpenAI (image)** — `dall-e-3` was removed from the API entirely on 2026-05-12. Now defaults to `gpt-image-2`; unlike dall-e-3's hosted-URL response, every `gpt-image-*` model returns base64 only (`OpenAIDriver::generateImage()` already branched on the model-name prefix for this, so no driver logic changed, just the config default).
+
+Also renamed (not urgent — the old alias still silently routes to the current model rather than erroring, confirmed): DeepSeek's default `deepseek-chat` → `deepseek-flash`, the real current name.
+
+`AnthropicDriver::models()`'s hardcoded fallback list (used when there's no live models endpoint to call) is updated to the current Claude 5 family; `DeepSeekDriver::models()`'s fallback list now offers `deepseek-flash` first while keeping the legacy name as a working fallback. `laravelai:install`'s interactive prompts suggest the corrected defaults too.
+
+None of this touches anyone who already set their own `AI_*_MODEL` env vars — only installs still relying on the packaged default were affected. `ai.pricing`'s empty-by-default posture (see its own docblock in `config/ai.php`) is unchanged and, if anything, now better justified: this whole fix exists because pinned model names go stale — a hardcoded price table would have the identical problem.
+
+2 tests updated (`InstallCommandTest`, `UsageLoggingTest`) and 1 added (`ImageGenerationTest` — confirms the actual shipped default, not just that `gpt-image-*` models work when explicitly selected) to match the corrected defaults. 221/221 tests passing (3 skipped, imagick-gated).
+
+Patch release (fixes existing behavior, no new capability): v2.20.1.
+
 ## v2.20.0 — 2026-08-15
 
 ### 📤 Public conversation share links (Phase 2 of 2)

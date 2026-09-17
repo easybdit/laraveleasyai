@@ -345,7 +345,7 @@ class OpenAIDriver extends AbstractDriver
     public function generateImage(string $prompt): string
     {
         $url   = rtrim($this->config['url'], '/') . '/images/generations';
-        $model = $this->config['image_model'] ?? 'dall-e-3';
+        $model = $this->config['image_model'] ?? 'gpt-image-2';
 
         $body = [
             'model'  => $model,

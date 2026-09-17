@@ -530,7 +530,7 @@ Cost estimation reuses the same `config('ai.pricing')` rates as [`getEstimatedCo
 ```php
 'pricing' => [
     'openai' => [
-        'image' => ['dall-e-3' => 0.04],              // flat USD per image
+        'image' => ['gpt-image-2' => 0.04],           // flat USD per image
     ],
     'together' => [
         'image' => ['black-forest-labs/FLUX.1-schnell' => ['per_mp' => 0.0027]], // USD per megapixel
@@ -792,7 +792,7 @@ AI_OPENAI_MODEL=gpt-4o-mini
 $url = AI::provider('openai')->generateImage('a red fox in snow');
 ```
 
-Defaults to `dall-e-3`, returning a hosted URL (valid 60 minutes) — same `generateImage(string): string` contract as Together's FLUX support below, so either drops straight into `![prompt]($url)` markdown or an `<img src>`. Set `AI_OPENAI_IMAGE_MODEL=gpt-image-1` (or `gpt-image-1-mini`/`gpt-image-1.5`) for OpenAI's newer models — they return only base64, no URL option at all, so this returns a `data:image/png;base64,...` string instead: still one usable string, just meaningfully larger if you store the resulting chat message.
+Defaults to `gpt-image-2` (OpenAI retired `dall-e-3` from the API entirely on 2026-05-12) — like every `gpt-image-*` model, it returns only base64, no URL option at all, so `generateImage()` returns a `data:image/png;base64,...` string: still one usable string, just meaningfully larger if you store the resulting chat message than a hosted-URL model like Together's FLUX below.
 
 > **New in v2.16.0** — `AI_OPENAI_IMAGE_ENABLED=true` also wires this into the chat UI's `/image`/`/img` command, same as Together's flag below. The command isn't hardcoded to one provider: it uses whichever image-capable provider (`openai`, `together`) is both currently the active chat provider *and* has its own `image_enabled` on; if the active provider can't generate images (or doesn't have it enabled), it falls back to whichever of the other one does — so a Together-only setup keeps working exactly as before, and turning both on lets `/image` "just follow" whichever provider you're actually talking to.
 
@@ -815,7 +815,7 @@ Storage::disk('local')->put('reply.mp3', $audio);
 
 ```env
 AI_ANTHROPIC_KEY=sk-ant-your-api-key
-AI_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+AI_ANTHROPIC_MODEL=claude-sonnet-5
 ```
 
 Extended thinking is off by default (it costs extra tokens and time). Turn it on and the chat UI shows the same live "🧠 Thinking…" block as Ollama:
@@ -829,7 +829,7 @@ AI_ANTHROPIC_THINK_BUDGET=10000
 
 ```env
 AI_DEEPSEEK_KEY=sk-your-api-key
-AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_MODEL=deepseek-flash
 ```
 
 ### Groq
@@ -838,14 +838,14 @@ Famously fast inference, OpenAI-compatible API — same driver family as DeepSee
 
 ```env
 AI_GROQ_KEY=gsk_your-api-key
-AI_GROQ_MODEL=llama-3.3-70b-versatile
+AI_GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 ### Google Gemini
 
 ```env
 AI_GEMINI_KEY=your-api-key
-AI_GEMINI_MODEL=gemini-2.0-flash
+AI_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 2.5-series models support the same live thinking display:
@@ -1257,7 +1257,7 @@ return [
         'ollama'    => ['driver' => 'ollama',    'url'     => env('AI_OLLAMA_URL'),    'model' => env('AI_OLLAMA_MODEL', 'qwen2:1.5b'),      'timeout' => env('AI_OLLAMA_TIMEOUT', 120)],
         'openai'    => ['driver' => 'openai',    'api_key' => env('AI_OPENAI_KEY'),    'model' => env('AI_OPENAI_MODEL', 'gpt-4o-mini'),      'timeout' => 60],
         'anthropic' => ['driver' => 'anthropic', 'api_key' => env('AI_ANTHROPIC_KEY'), 'model' => env('AI_ANTHROPIC_MODEL'),                  'timeout' => 60],
-        'deepseek'  => ['driver' => 'deepseek',  'api_key' => env('AI_DEEPSEEK_KEY'),  'model' => env('AI_DEEPSEEK_MODEL', 'deepseek-chat'),  'timeout' => 60],
+        'deepseek'  => ['driver' => 'deepseek',  'api_key' => env('AI_DEEPSEEK_KEY'),  'model' => env('AI_DEEPSEEK_MODEL', 'deepseek-flash'), 'timeout' => 60],
     ],
     'rag' => [
         'embed_provider' => env('AI_RAG_PROVIDER', 'ollama'),
@@ -1289,19 +1289,19 @@ AI_OPENAI_MODEL=gpt-4o-mini
 
 # Anthropic (Claude)
 AI_ANTHROPIC_KEY=sk-ant-xxxx
-AI_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+AI_ANTHROPIC_MODEL=claude-sonnet-5
 
 # DeepSeek
 AI_DEEPSEEK_KEY=sk-xxxx
-AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_MODEL=deepseek-flash
 
 # Groq
 AI_GROQ_KEY=gsk_xxxx
-AI_GROQ_MODEL=llama-3.3-70b-versatile
+AI_GROQ_MODEL=openai/gpt-oss-120b
 
 # Gemini
 AI_GEMINI_KEY=your-api-key
-AI_GEMINI_MODEL=gemini-2.0-flash
+AI_GEMINI_MODEL=gemini-3.6-flash
 
 # Together AI
 AI_TOGETHER_KEY=your-api-key
@@ -1528,6 +1528,7 @@ Either way, the sidebar's identity line will pick up the resolved identity autom
 | v2.18 | Web search settings (on/off, provider, both API keys) manageable from `/ai-chat/settings`' new 🔎 Web Search tab — no `.env` edit needed | ✅ Released |
 | v2.19 | 📤 Share a reply via WhatsApp/Email — first of two share phases; a real public share-link (and a genuinely useful Facebook share) is next | ✅ Released |
 | v2.20 | 📤 Public, read-only conversation share links (`/ai-chat/s/{token}`) — unlocks Facebook sharing + link-based WhatsApp/Email, second of two share phases | ✅ Released |
+| v2.20.1 | Fix — 4 of the 6 providers' shipped default models had been retired/removed by their provider since this package pinned them (Anthropic, Gemini, Groq chat; OpenAI image); corrected to each provider's current model | ✅ Released |
 
 ---
 

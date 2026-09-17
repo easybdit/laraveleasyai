@@ -51,22 +51,22 @@ AI_OPENAI_MODEL=gpt-4o-mini
 
 ```env
 AI_ANTHROPIC_KEY=sk-ant-...
-AI_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+AI_ANTHROPIC_MODEL=claude-sonnet-5
 ```
 
 ```env
 AI_DEEPSEEK_KEY=sk-...
-AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_MODEL=deepseek-flash
 ```
 
 ```env
 AI_GROQ_KEY=gsk_...
-AI_GROQ_MODEL=llama-3.3-70b-versatile
+AI_GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 ```env
 AI_GEMINI_KEY=...
-AI_GEMINI_MODEL=gemini-2.0-flash
+AI_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 ```env
@@ -269,7 +269,7 @@ AI_TAVILY_API_KEY=tvly-...
 
 ```php
 $url = AI::provider('together')->generateImage('a red fox in snow'); // FLUX, hosted URL
-$url = AI::provider('openai')->generateImage('a red fox in snow');   // dall-e-3 by default, also a hosted URL
+$url = AI::provider('openai')->generateImage('a red fox in snow');   // gpt-image-2 by default — base64, not a hosted URL
 $url = AI::provider('gemini')->generateImage('a red fox in snow');   // "Nano Banana" — always base64, no URL option
 ```
 
@@ -336,8 +336,8 @@ Identical requests (same provider, model, messages, temperature, max tokens, sys
 // config/ai.php — empty by default; fill in your own current rate from your provider's pricing page
 'pricing' => [
     'openai' => [
-        'gpt-4o-mini' => ['input' => 0.15, 'output' => 0.60], // USD per 1,000 tokens
-        'image' => ['dall-e-3' => 0.04],                       // flat USD per image
+        'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006], // USD per 1,000 tokens
+        'image' => ['gpt-image-2' => 0.04],                         // flat USD per image
     ],
     'together' => [
         'image' => ['black-forest-labs/FLUX.1-schnell' => ['per_mp' => 0.0027]], // USD per megapixel

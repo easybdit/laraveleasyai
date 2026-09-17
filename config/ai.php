@@ -26,16 +26,19 @@ return [
             'timeout' => (int) env('AI_OPENAI_TIMEOUT', 60),
             'vision'  => true,
             'options' => ['temperature' => 0.7, 'max_tokens' => 2000],
-            // Defaults to dall-e-3 rather than the newer gpt-image-1/1.5 —
-            // dall-e-3 returns a lightweight hosted URL (valid 60 minutes),
-            // matching Together's generateImage() contract and keeping a
-            // stored chat message small. The GPT image models return only
-            // base64 (confirmed against OpenAI's own OpenAPI spec — no url
-            // option exists for them at all), which this driver still
-            // supports if you set this to one of them, just as a
-            // data:image/...;base64 string instead of a URL — meaningfully
-            // larger if you store the resulting chat message.
-            'image_model' => env('AI_OPENAI_IMAGE_MODEL', 'dall-e-3'),
+            // dall-e-3 (this default until v2.21.0) was removed from the API
+            // entirely on 2026-05-12 — confirmed via OpenAI's own deprecation
+            // notice, not assumed; every install still on that default was
+            // getting a hard failure on every image request. gpt-image-2 is
+            // the current model. Unlike dall-e-3's lightweight hosted URL
+            // (valid 60 minutes, matching Together's generateImage()
+            // contract), every gpt-image-* model returns only base64
+            // (confirmed against OpenAI's own OpenAPI spec — no url option
+            // exists for them at all) — OpenAIDriver::generateImage() already
+            // branches on the model name prefix to wrap that as a
+            // data:image/...;base64 string instead, meaningfully larger if
+            // you store the resulting chat message.
+            'image_model' => env('AI_OPENAI_IMAGE_MODEL', 'gpt-image-2'),
             // Off by default, same posture as Together's own image_enabled —
             // image generation is billed separately from chat and shouldn't
             // turn on just because an OpenAI key is configured. Once on, the
@@ -53,7 +56,12 @@ return [
             'driver'  => 'anthropic',
             'api_key' => env('AI_ANTHROPIC_KEY'),
             'url'     => env('AI_ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
-            'model'   => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
+            // claude-sonnet-4-20250514 (this default until v2.21.0) was
+            // retired by Anthropic on 2026-06-15 09:00 PT — API calls to it
+            // error outright since then. claude-sonnet-5 is the current
+            // flagship Sonnet model (also cheaper: $2/$10 per MTok vs the
+            // retired model's $3/$15).
+            'model'   => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
             'version' => env('AI_ANTHROPIC_VERSION', '2023-06-01'),
             'timeout' => (int) env('AI_ANTHROPIC_TIMEOUT', 60),
             'vision'  => true,
@@ -68,7 +76,13 @@ return [
             'driver'  => 'deepseek',
             'api_key' => env('AI_DEEPSEEK_KEY'),
             'url'     => env('AI_DEEPSEEK_URL', 'https://api.deepseek.com/v1'),
-            'model'   => env('AI_DEEPSEEK_MODEL', 'deepseek-chat'),
+            // The 'deepseek-chat' alias (this default until v2.21.0) was
+            // retired as a name after 2026-07-24, though DeepSeek still
+            // routes legacy requests to the current model rather than
+            // erroring — not a hard break, but 'deepseek-flash' is the real
+            // current name and avoids depending on a retired alias staying
+            // routable indefinitely.
+            'model'   => env('AI_DEEPSEEK_MODEL', 'deepseek-flash'),
             'timeout' => (int) env('AI_DEEPSEEK_TIMEOUT', 60),
             'vision'  => false,
             'options' => ['temperature' => 0.7, 'max_tokens' => 2000],
@@ -77,7 +91,13 @@ return [
             'driver'  => 'groq',
             'api_key' => env('AI_GROQ_KEY'),
             'url'     => env('AI_GROQ_URL', 'https://api.groq.com/openai/v1'),
-            'model'   => env('AI_GROQ_MODEL', 'llama-3.3-70b-versatile'),
+            // llama-3.3-70b-versatile (this default until v2.21.0) was
+            // decommissioned by Groq on 2026-08-16 — confirmed via Groq's
+            // own model-deprecation docs, not assumed; every install still
+            // on that default was getting a hard failure on every chat
+            // request. openai/gpt-oss-120b is Groq's own migration
+            // recommendation for it.
+            'model'   => env('AI_GROQ_MODEL', 'openai/gpt-oss-120b'),
             'timeout' => (int) env('AI_GROQ_TIMEOUT', 60),
             'vision'  => false,
             'options' => ['temperature' => 0.7, 'max_tokens' => 2000],
@@ -569,8 +589,8 @@ return [
      *         // Chat: USD per 1,000 tokens.
      *         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006],
      *         'image' => [
-     *             // Flat USD per image (OpenAI's dall-e-3/gpt-image-* pricing).
-     *             'dall-e-3' => 0.04,
+     *             // Flat USD per image (OpenAI's gpt-image-* pricing).
+     *             'gpt-image-2' => 0.04,
      *         ],
      *     ],
      *     'together' => [

@@ -70,7 +70,7 @@ class UsageLogger
      * configured an exact rate for this provider/model" contract as
      * AIResponse::getEstimatedCost(), extended here to also cover image
      * generation. Two rate shapes under a provider's 'image' sub-key:
-     *   - a plain number    => USD per image (e.g. OpenAI's dall-e-3)
+     *   - a plain number    => USD per image (e.g. OpenAI's gpt-image-2)
      *   - ['per_mp' => x]   => USD per megapixel, needs $data['megapixels']
      *                          (e.g. Together's FLUX models)
      */

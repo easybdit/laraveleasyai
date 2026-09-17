@@ -23,12 +23,15 @@ class DeepSeekDriver extends OpenAIDriver
                 ->get($url);
 
             if (!$response->successful()) {
-                return ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+                // deepseek-flash is the current name; deepseek-chat is kept
+                // here too since DeepSeek still routes that retired alias to
+                // the current model rather than erroring on it.
+                return ['deepseek-flash', 'deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
             }
 
             return array_column($response->json('data', []), 'id');
         } catch (\Throwable) {
-            return ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+            return ['deepseek-flash', 'deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
         }
     }
 }

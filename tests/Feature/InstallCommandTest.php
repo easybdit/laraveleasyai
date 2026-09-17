@@ -148,7 +148,7 @@ class InstallCommandTest extends TestCase
                 ]
             )
             ->expectsQuestion('Your Anthropic API key', 'sk-test-anthropic-key')
-            ->expectsQuestion('Anthropic model', 'claude-sonnet-4-20250514')
+            ->expectsQuestion('Anthropic model', 'claude-sonnet-5')
             ->expectsConfirmation('Enable chat attachments — let users upload images and documents (PDF/txt/md) mid-conversation?', 'no')
             ->expectsConfirmation('Pre-install any conversation-export formats now? (the chat UI\'s export button already offers PDF/Word/Excel/PowerPoint either way — this just avoids hitting a "run this command" message the first time someone actually downloads one)', 'no')
             ->expectsOutputToContain('AI_PROVIDER already has a value in .env')
@@ -164,7 +164,7 @@ class InstallCommandTest extends TestCase
 
         // But genuinely new keys for the chosen provider are still appended.
         $this->assertStringContainsString('AI_ANTHROPIC_KEY=sk-test-anthropic-key', $contents);
-        $this->assertStringContainsString('AI_ANTHROPIC_MODEL=claude-sonnet-4-20250514', $contents);
+        $this->assertStringContainsString('AI_ANTHROPIC_MODEL=claude-sonnet-5', $contents);
     }
 
     public function test_force_option_skips_already_exists_confirmations(): void

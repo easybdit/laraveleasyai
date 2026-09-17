@@ -364,11 +364,14 @@ class AnthropicDriver extends AbstractDriver
 
     public function models(): array
     {
-        // Anthropic doesn't have a public models list endpoint
+        // Anthropic doesn't have a public models list endpoint. This list
+        // used to return the claude-*-4-... snapshots — Sonnet 4 and Opus 4
+        // were both confirmed retired by Anthropic on 2026-06-15 (API calls
+        // to them error), so this is the current Claude 5 family instead.
         return [
-            'claude-opus-4-20250514',
-            'claude-sonnet-4-20250514',
-            'claude-haiku-4-20250414',
+            'claude-opus-5',
+            'claude-sonnet-5',
+            'claude-haiku-4-5-20251001',
         ];
     }
 }
