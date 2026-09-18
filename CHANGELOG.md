@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.21.0 — 2026-09-18
+
+### 🪝 Per-step agent-loop callback (`$onStep`)
+
+`AIProviderInterface::run()` gains a new optional 5th parameter, `?callable $onStep = null`, implemented in `AbstractDriver::run()` — the one place every driver's agent loop shares. Previously, `run()`'s return value only ever carried the *last* step's `AIResponse`; a tool-calling turn that made two or more real LLM calls had no way for a caller to observe or account for any step but the final one, silently dropping that intermediate usage.
+
+`$onStep($response)` fires once per real LLM call the loop makes — covering every intermediate tool-calling step and the final converged (or `maxSteps`-exhausted) step alike — immediately after that step's `AIResponse` is received and before any tool call it contains executes, so a caller's accounting is never dependent on a tool succeeding, failing, or its execution time. It works identically for both streaming and non-streaming runs, since each driver's stream handler already assembles a complete `AIResponse` before control returns to the loop. Purely additive, same posture as `$onToolCall`/`$onChunk`: appended as the last parameter with a `null` default, so every existing 1-4 argument call site is unaffected.
+
+3 new tests in `ToolCallingTest`: `$onStep` firing exactly once per LLM call with each step's own usage independently readable (and summable, including `getEstimatedCost()` via the existing config-driven pricing — nothing invented or approximated), and `$onStep` firing before that step's tool actually executes. 301/301 tests passing (6 skipped, imagick-gated).
+
+Minor release (new backward-compatible capability): v2.21.0.
+
 ## v2.20.0 — 2026-08-15
 
 ### 📤 Public conversation share links (Phase 2 of 2)

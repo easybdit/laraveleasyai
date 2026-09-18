@@ -1008,6 +1008,25 @@ $response = AI::provider('openai')->tools([$weather])->run(
 
 Detecting a tool call is unaffected either way — each driver's stream handler reassembles `hasToolCalls()`/`getToolCalls()` from that provider's own real incremental format (OpenAI's indexed `delta.tool_calls` argument fragments, Anthropic's `input_json_delta` blocks keyed by content-block index, Gemini's whole `functionCall` parts, Ollama's whole `message.tool_calls`), so the loop keeps executing tools exactly the same regardless of which path produced the response. Omit `onChunk` (or pass `null`) for the exact non-streaming behavior `run()` always had.
 
+**Observing every step, not just the final answer — `$onStep`:** `run()`'s return value only ever carries the *last* step's `AIResponse` — once the loop converges to a plain-text answer, everything an earlier step produced (including the usage/cost of the step that decided to call a tool in the first place) is otherwise lost. A 5th argument, `onStep`, fires once per real LLM call the loop makes — every intermediate tool-calling step and the final step alike — each time handing you that step's actual `AIResponse`:
+
+```php
+$totalPromptTokens = $totalCompletionTokens = 0;
+
+$response = AI::provider('openai')->tools([$weather])->run(
+    $messages,
+    maxSteps: 5,
+    onToolCall: null,
+    onChunk: null,
+    onStep: function ($stepResponse) use (&$totalPromptTokens, &$totalCompletionTokens) {
+        $totalPromptTokens += $stepResponse->getPromptTokens();
+        $totalCompletionTokens += $stepResponse->getCompletionTokens();
+    },
+);
+```
+
+It fires immediately after that step's response is received — streamed or not, `onStep` always receives a fully-formed `AIResponse` either way, since `stream()`'s handler already assembles one before control returns to the loop — and *before* any tool call that response contains actually executes, so your accounting is never dependent on a tool succeeding, failing, or how long it takes to run. An ordinary turn with no tool calls at all still fires it exactly once, with the very same response `run()` itself returns. Purely additive and fully backward compatible: every existing 1-4 argument call site is unaffected, and `onStep: null` (the default) is the exact behavior `run()` always had. The use case this unlocks: accumulating real per-step token usage and `getEstimatedCost()` across a multi-step tool-calling turn — something `run()`'s own return value alone could never give you, since it only ever reflects the final call.
+
 ### Using tools in the built-in chat UI
 
 The agent module works from your own code regardless of any of this, but `/ai-chat` (the built-in chat window) can use it too — opt-in, currently wired up for the built-in web search tool:
@@ -1528,6 +1547,7 @@ Either way, the sidebar's identity line will pick up the resolved identity autom
 | v2.18 | Web search settings (on/off, provider, both API keys) manageable from `/ai-chat/settings`' new 🔎 Web Search tab — no `.env` edit needed | ✅ Released |
 | v2.19 | 📤 Share a reply via WhatsApp/Email — first of two share phases; a real public share-link (and a genuinely useful Facebook share) is next | ✅ Released |
 | v2.20 | 📤 Public, read-only conversation share links (`/ai-chat/s/{token}`) — unlocks Facebook sharing + link-based WhatsApp/Email, second of two share phases | ✅ Released |
+| v2.21 | Per-step agent-loop observability — `run()`'s new `$onStep` param fires once per real LLM call (every intermediate tool-calling step and the final one), handing you each step's own `AIResponse` before that step's tool executes, so a caller can accumulate true per-step token usage/cost across a multi-step tool-calling turn | ✅ Released |
 
 ---
 
