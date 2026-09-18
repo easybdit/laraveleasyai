@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.21.1 — 2026-09-18
+
+### 🐛 Fix: an unnecessary direct Guzzle pin blocked installs into newer Laravel apps
+
+`composer.json` required `"guzzlehttp/guzzle": "^7.5"` directly, even though nothing in this package's own source ever references `GuzzleHttp\` — confirmed by a full repository search, zero matches outside `vendor/`. Every outbound HTTP call goes through Laravel's own `illuminate/http` `Http` facade, which already declares the correct Guzzle requirement for whichever Laravel version is actually installed. The leftover pin served no purpose here, and actively blocked a plain `composer require easybdit/laraveleasyai` into a Laravel app whose own Guzzle version resolved outside that `^7.5` range, forcing a `--with-all-dependencies` workaround just to get past it.
+
+Removed the redundant constraint entirely rather than widening it to a specific new range — Guzzle version compatibility is `illuminate/http`'s concern to declare, not this package's to duplicate and let go stale again the next time Guzzle or Laravel moves on.
+
+No source change, no behavior change — full suite still passes unchanged after removing the pin and refreshing the lock file: 301/301 tests, 753 assertions (6 skipped, imagick-gated).
+
 ## v2.21.0 — 2026-09-18
 
 ### 🪝 Per-step agent-loop callback (`$onStep`)
