@@ -75,6 +75,19 @@ interface AIProviderInterface
      * calling a tool) reaches the caller token-by-token as it's generated
      * instead of only once the whole turn completes. Omit for the exact
      * same non-streaming behavior as before this parameter existed.
+     *
+     * $onStep, when given, is called as $onStep($response) once per
+     * agent-loop iteration, immediately after that step's AIResponse is
+     * received (streamed or not) and before it's checked for tool calls or
+     * any tool executes — a step that ends up requesting a tool and the
+     * final converged (or maxSteps-exhausted) step both trigger it, so a
+     * caller can observe every real AIResponse the loop produces, not just
+     * the one run() ultimately returns. This is the only way to see an
+     * intermediate step's own usage (getPromptTokens()/getCompletionTokens()/
+     * getEstimatedCost()) — run()'s return value only ever carries the last
+     * step's. Purely an observability hook, same posture as $onToolCall:
+     * never changes what run() returns or how the loop proceeds. Omit for
+     * the exact same behavior as before this parameter existed.
      */
-    public function run(array $messages, int $maxSteps = 5, ?callable $onToolCall = null, ?callable $onChunk = null): AIResponseInterface;
+    public function run(array $messages, int $maxSteps = 5, ?callable $onToolCall = null, ?callable $onChunk = null, ?callable $onStep = null): AIResponseInterface;
 }

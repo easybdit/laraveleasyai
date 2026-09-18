@@ -325,8 +325,17 @@ abstract class AbstractDriver implements AIProviderInterface
      * input_json_delta for Anthropic, functionCall parts for Gemini,
      * message.tool_calls for Ollama) — hasToolCalls() below works exactly
      * the same regardless of which path produced the response.
+     *
+     * $onStep (optional): called as $onStep($response) once per loop
+     * iteration, right after that step's AIResponse is received and before
+     * it's even checked for tool calls — so it fires for every intermediate
+     * tool-call step and the final step alike, the only place a caller can
+     * see each step's own usage rather than just the one response run()
+     * returns. Purely additive, same posture as $onToolCall/$onChunk:
+     * omitted (null, the default), this is a no-op and run() behaves
+     * exactly as before.
      */
-    public function run(array $messages, int $maxSteps = 5, ?callable $onToolCall = null, ?callable $onChunk = null): AIResponseInterface
+    public function run(array $messages, int $maxSteps = 5, ?callable $onToolCall = null, ?callable $onChunk = null, ?callable $onStep = null): AIResponseInterface
     {
         $tools    = $this->currentTools;
         $maxSteps = max(1, $maxSteps);
@@ -335,6 +344,10 @@ abstract class AbstractDriver implements AIProviderInterface
         for ($step = 0; $step < $maxSteps; $step++) {
             $this->currentTools = $tools; // chat()/stream() reset this via resetOverrides() each call
             $response = $onChunk !== null ? $this->stream($messages, $onChunk) : $this->chat($messages);
+
+            if ($onStep !== null) {
+                $onStep($response);
+            }
 
             if (!$response->hasToolCalls()) {
                 return $response;

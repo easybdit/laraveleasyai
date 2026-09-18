@@ -97,6 +97,155 @@ class ToolCallingTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    /**
+     * run() only ever returns the LAST step's AIResponse - a tool-calling
+     * turn makes two real LLM calls, each with its own real usage, and
+     * only the second's was ever previously observable. $onStep exposes
+     * both, letting a caller independently sum usage/cost across every
+     * step rather than just the final one.
+     */
+    public function test_openai_on_step_fires_once_per_llm_call_with_each_steps_own_usage(): void
+    {
+        config(['ai.pricing.openai.gpt-4o-mini' => ['input' => 0.01, 'output' => 0.03]]);
+
+        $invokedWith = null;
+
+        Http::fake([
+            'api.openai.com/*' => Http::sequence()
+                ->push([
+                    'choices' => [[
+                        'message' => [
+                            'role'       => 'assistant',
+                            'content'    => null,
+                            'tool_calls' => [[
+                                'id'       => 'call_1',
+                                'type'     => 'function',
+                                'function' => ['name' => 'get_weather', 'arguments' => '{"city":"Paris"}'],
+                            ]],
+                        ],
+                    ]],
+                    'usage' => ['prompt_tokens' => 100, 'completion_tokens' => 20],
+                ])
+                ->push([
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'It is sunny in Paris.']]],
+                    'usage'   => ['prompt_tokens' => 50, 'completion_tokens' => 10],
+                ]),
+        ]);
+
+        $steps = [];
+
+        $response = AI::provider('openai')
+            ->tools([$this->weatherTool($invokedWith)])
+            ->run(
+                [['role' => 'user', 'content' => 'Weather in Paris?']],
+                5,
+                null,
+                null,
+                function ($stepResponse) use (&$steps) {
+                    $steps[] = $stepResponse;
+                }
+            );
+
+        // Fired exactly once per real LLM call - the tool-call step and the
+        // final-answer step - not zero, not more.
+        $this->assertCount(2, $steps);
+
+        // Each callback received the actual AIResponse for that step, with
+        // its own real, independently readable usage - not a copy/summary.
+        $this->assertSame(100, $steps[0]->getPromptTokens());
+        $this->assertSame(20, $steps[0]->getCompletionTokens());
+        $this->assertTrue($steps[0]->hasToolCalls());
+
+        $this->assertSame(50, $steps[1]->getPromptTokens());
+        $this->assertSame(10, $steps[1]->getCompletionTokens());
+        $this->assertFalse($steps[1]->hasToolCalls());
+        $this->assertSame('It is sunny in Paris.', $steps[1]->getContent());
+
+        // A caller can independently sum both steps' usage - the total that
+        // was previously inaccessible through run()'s own return value.
+        $this->assertSame(150, array_sum(array_map(fn ($r) => $r->getPromptTokens(), $steps)));
+        $this->assertSame(30, array_sum(array_map(fn ($r) => $r->getCompletionTokens(), $steps)));
+
+        // Same for cost - each step's own getEstimatedCost() (null unless
+        // a rate is configured, same contract as always) can be summed by
+        // the caller; nothing here invents or approximates a price.
+        // Step 1: 100/1000*0.01 + 20/1000*0.03 = 0.0016
+        // Step 2: 50/1000*0.01 + 10/1000*0.03 = 0.0008
+        $this->assertEqualsWithDelta(0.0016, $steps[0]->getEstimatedCost(), 0.0001);
+        $this->assertEqualsWithDelta(0.0008, $steps[1]->getEstimatedCost(), 0.0001);
+        $totalCost = array_sum(array_map(fn ($r) => $r->getEstimatedCost() ?? 0, $steps));
+        $this->assertEqualsWithDelta(0.0024, $totalCost, 0.0001);
+
+        // Tool execution and the final response are both unaffected by
+        // onStep being present.
+        $this->assertSame(['city' => 'Paris'], $invokedWith);
+        $this->assertSame('It is sunny in Paris.', $response->getContent());
+        Http::assertSentCount(2);
+    }
+
+    /**
+     * $onStep must observe the raw LLM response before the loop does
+     * anything else with it - specifically before that step's tool
+     * actually executes, so a caller's usage accounting is never
+     * order-dependent on tool execution succeeding, failing, or taking
+     * any particular amount of time.
+     */
+    public function test_openai_on_step_fires_before_that_steps_tool_executes(): void
+    {
+        $callOrder = [];
+
+        $tool = Tool::make(
+            'get_weather',
+            'Gets the current weather for a city.',
+            ['type' => 'object', 'properties' => ['city' => ['type' => 'string']], 'required' => ['city']],
+            function (array $args) use (&$callOrder) {
+                $callOrder[] = 'tool_executed';
+                return "Sunny in {$args['city']}";
+            }
+        );
+
+        Http::fake([
+            'api.openai.com/*' => Http::sequence()
+                ->push([
+                    'choices' => [[
+                        'message' => [
+                            'role'       => 'assistant',
+                            'content'    => null,
+                            'tool_calls' => [[
+                                'id'       => 'call_1',
+                                'type'     => 'function',
+                                'function' => ['name' => 'get_weather', 'arguments' => '{"city":"Paris"}'],
+                            ]],
+                        ],
+                    ]],
+                    'usage' => ['prompt_tokens' => 100, 'completion_tokens' => 20],
+                ])
+                ->push([
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'It is sunny in Paris.']]],
+                    'usage'   => ['prompt_tokens' => 50, 'completion_tokens' => 10],
+                ]),
+        ]);
+
+        AI::provider('openai')
+            ->tools([$tool])
+            ->run(
+                [['role' => 'user', 'content' => 'Weather in Paris?']],
+                5,
+                null,
+                null,
+                function ($stepResponse) use (&$callOrder) {
+                    $callOrder[] = 'on_step';
+                }
+            );
+
+        // on_step for the tool-call step fires before that step's tool
+        // actually runs, and on_step for the final step fires after (there
+        // being no further tool to run by then) - proving $onStep observes
+        // the raw response, not something interleaved with or after tool
+        // execution.
+        $this->assertSame(['on_step', 'tool_executed', 'on_step'], $callOrder);
+    }
+
     public function test_openai_run_respects_max_steps_without_throwing(): void
     {
         Http::fake([
