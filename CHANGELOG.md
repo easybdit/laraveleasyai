@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.21.2 — 2026-11-09
+
+### 🐛 Fix: Ollama HTTP 400 when a tool is called with no arguments
+
+When a model called a tool that takes no arguments, `OllamaDriver` echoed the assistant message back to Ollama with `"arguments": []` (PHP's empty array). Ollama requires a JSON object (`{}`) there and rejected the follow-up request with HTTP 400. Empty arguments are now sent as `{}` in both the streaming and non-streaming paths.
+
+302/302 tests passing (6 skipped, imagick-gated), including a new regression test.
+
 ## v2.21.1 — 2026-09-18
 
 ### 🐛 Fix: an unnecessary direct Guzzle pin blocked installs into newer Laravel apps

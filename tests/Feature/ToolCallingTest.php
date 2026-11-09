@@ -523,6 +523,37 @@ class ToolCallingTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_ollama_argless_tool_call_is_echoed_back_as_json_object(): void
+    {
+        Http::fake([
+            '127.0.0.1:11434/api/chat' => Http::sequence()
+                ->push([
+                    'message' => [
+                        'role'       => 'assistant',
+                        'content'    => '',
+                        'tool_calls' => [
+                            ['function' => ['name' => 'get_weather', 'arguments' => (object) []]],
+                        ],
+                    ],
+                    'done' => true,
+                ])
+                ->push([
+                    'message' => ['role' => 'assistant', 'content' => 'ok'],
+                    'done'    => true,
+                ]),
+        ]);
+
+        AI::provider('ollama')
+            ->tools([$this->weatherTool()])
+            ->run([['role' => 'user', 'content' => 'Weather?']]);
+
+        $sent = Http::recorded()->all();
+        $this->assertCount(2, $sent);
+        // Ollama rejects "arguments": [] with HTTP 400 — it must be "{}".
+        $this->assertStringContainsString('"arguments":{}', $sent[1][0]->body());
+        $this->assertStringNotContainsString('"arguments":[]', $sent[1][0]->body());
+    }
+
     public function test_ollama_run_respects_max_steps_without_throwing(): void
     {
         Http::fake([

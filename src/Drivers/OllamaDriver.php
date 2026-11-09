@@ -89,6 +89,14 @@ class OllamaDriver extends AbstractDriver
                 );
             }
 
+            // json()-decoded `{}` becomes `[]`; Ollama rejects an empty array
+            // for "arguments" (HTTP 400) when this message is echoed back.
+            foreach ($message['tool_calls'] ?? [] as $i => $tc) {
+                if (empty($tc['function']['arguments'])) {
+                    $message['tool_calls'][$i]['function']['arguments'] = new \stdClass;
+                }
+            }
+
             $result = new AIResponse(
                 content:             $message['content'] ?? '',
                 promptTokens:        $data['prompt_eval_count'] ?? $this->estimateTokens(json_encode($messages)),
@@ -241,7 +249,7 @@ class OllamaDriver extends AbstractDriver
                     rawAssistantMessage: $toolCalls ? [
                         'role'       => 'assistant',
                         'content'    => $fullContent,
-                        'tool_calls' => array_map(fn (ToolCall $tc) => ['function' => ['name' => $tc->name, 'arguments' => $tc->arguments]], $toolCalls),
+                        'tool_calls' => array_map(fn (ToolCall $tc) => ['function' => ['name' => $tc->name, 'arguments' => $tc->arguments ?: new \stdClass]], $toolCalls),
                     ] : null,
                     structured:          $this->extractStructuredData($fullContent),
                 );
